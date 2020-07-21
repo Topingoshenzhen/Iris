@@ -1,0 +1,1360 @@
+package main
+
+
+import (
+	
+_ "shanghaiyiqi/routers"
+	
+"github.com/astaxie/beego"
+	
+_ "shanghaiyiqi/models"
+
+)
+
+
+
+
+func main() {
+	beego.AddFuncMap("prepage", ShowPrePage)
+	beego.AddFuncMap("nextpage", ShowNextPage)
+	beego.Run()
+}
+
+
+//后台定义一个函数
+
+
+func ShowPrePage(pageIndex int)int {
+	if pageIndex == 1 {
+		return pageIndex
+	}
+	return pageIndex - 1
+}
+
+
+
+func ShowNextPage(pageIndex int, pageCount int)int {
+	if pageIndex == pageCount {
+		return pageIndex
+	}
+	return pageIndex + 1
+}
+
+
+
+
+
+
+package routers
+
+
+
+import (
+	
+"shanghaiyiqi/controllers"
+	
+"github.com/astaxie/beego"
+    
+"github.com/astaxie/beego/context"
+
+)
+
+
+
+
+func init() {
+    
+beego.InsertFilter("/article/*",beego.BeforeExec,Filfter)
+    
+beego.Router("/", &controllers.MainController{},"get:ShowGet;post:Post")
+
+    
+beego.Router("/register",&controllers.UserController{},"get:ShowRegister;post:HandlePost")
+
+    
+beego.Router("/login",&controllers.UserController{},"get:ShowLogin;post:HandleLogin")
+   
+//文章列表页访问
+    
+beego.Router("/article/showArticleList",&controllers.ArticleController{},"get:ShowArticleList")
+    
+//添加文章
+    
+beego.Router("/article/addArticle",&controllers.ArticleController{},"get:ShowAddArticle;post:HandleAddArticle")
+    
+//显示文章详情
+    
+beego.Router("/article/showArticleDetail",&controllers.ArticleController{},"get:ShowArticleDetail")
+    
+//编辑文章
+    
+beego.Router("/article/updateArticle",&controllers.ArticleController{},"get:ShowUpdateArticle;post:HandleUpdateArticle")
+    
+//删除文章
+    
+beego.Router("/article/deleteArticle",&controllers.ArticleController{},"get:DeleteArticle")
+    
+//添加分类
+    
+beego.Router("/article/addType",&controllers.ArticleController{},"get:ShowAddType;post:HandleAddType")
+    
+//退出登录
+    
+beego.Router("/article/logout",&controllers.UserController{},"get:Logout")
+    
+//删除类型
+    
+beego.Router("/article/deleteType",&controllers.ArticleController{},"get:DeleteType")
+
+
+}
+
+
+
+var  Filfter = func(ctx * context.Context) {
+    
+				userName := ctx.Input.Session("userName")
+    
+				if userName == nil{
+        
+					ctx.Redirect(302,"/login")
+        
+					return
+    
+				}
+
+		
+}
+
+
+
+/*
+作用：处理视图中简单业务逻辑
+1.创建后台函数
+2.在视图中定义函数名
+3.在beego.Run之前关联起来
+ */
+
+
+
+
+
+
+
+
+
+
+package models
+
+
+	import (
+	
+		_ "github.com/go-sql-driver/mysql"
+	
+		"github.com/astaxie/beego/orm"
+	
+		"time"
+
+	)
+
+
+//表的设计
+
+
+//定义一个结构体
+
+type User struct {
+	
+	Id int
+	
+	Name string
+	
+	PassWord string
+	//Pass_Word
+	
+	Articles []*Article `orm:"reverse(many)"`
+
+}
+
+
+
+
+type Article struct {
+	
+	Id int `orm:"pk;auto"`
+	
+	ArtiName string `orm:"size(20)"`
+	
+	Atime time.Time `orm:"auto_now"`
+	
+	Acount int `orm:"default(0);null"`
+	
+	Acontent string `orm:"size(500)"`
+	
+	Aimg string  `orm:"size(100)"`
+
+	
+	ArticleType *ArticleType `orm:"rel(fk);on_delete(set_null);null"`
+	
+	Users []*User `orm:"rel(m2m)"`
+
+}
+
+
+
+
+
+//类型表
+
+type ArticleType struct {
+	
+	Id int
+	
+	TypeName string `orm:"size(20)"`
+
+	
+	Articles []*Article `orm:"reverse(many)"`
+
+}
+
+
+
+//在ORM里面__是有特殊含义的
+
+
+
+func init(){
+
+	//ORM操作数据库
+
+	//获取连接对象
+
+	orm.RegisterDataBase("default","mysql","root:123456@tcp(127.0.0.1:3306)/test?charset=utf8")
+
+
+	
+//创建表
+
+	orm.RegisterModel(new(User),new(Article),new(ArticleType))
+
+
+
+	//生成表
+
+	//第一个参数是数据库别名，第二个参数是是否强制更新
+
+	orm.RunSyncdb("default",false,true)
+//操作表
+
+
+}
+
+
+
+
+
+
+
+
+
+
+package controllers
+
+
+import (
+	
+	"github.com/astaxie/beego"
+	
+	"github.com/astaxie/beego/orm"
+	
+	"shanghaiyiqi/models"
+	
+	"encoding/base64"
+
+)
+
+
+
+type UserController struct {
+	
+	beego.Controller
+
+}
+
+
+
+//显示注册页面
+
+func(this*UserController)ShowRegister(){
+	
+	this.TplName = "register.html"
+
+}
+
+
+
+//处理注册数据
+
+func(this*UserController)HandlePost(){
+	
+
+	//1.获取数据
+	
+	userName := this.GetString("userName")
+	
+	pwd := this.GetString("password")
+
+	
+	//beego.Info(userName,pwd)
+	
+
+	//2.校验数据
+	
+	if userName == "" || pwd == ""{
+		
+		this.Data["errmsg"] = "注册数据不完整，请重新注册"
+		
+		beego.Info("注册数据不完整，请重新注册")
+		
+		this.TplName = "register.html"
+		
+		return
+	
+	}
+	
+
+	//3.操作数据
+	
+	//获取ORM对象
+	
+	o := orm.NewOrm()
+	
+	//获取插入对象
+	
+	var user models.User
+	
+	//给插入对象赋值
+	
+	user.Name = userName
+	
+	user.PassWord = pwd
+	
+	//插入
+	
+	o.Insert(&user)
+	
+
+	//返回结果
+
+	
+	//4.返回页面
+	
+	//this.Ctx.WriteString("注册成功")
+	
+	this.Redirect("/login",302)
+	
+	//this.TplName = "login.html"
+
+}
+
+
+
+	
+//展示登录页面
+
+func(this*UserController)ShowLogin(){
+	
+	userName := this.Ctx.GetCookie("userName")
+	
+	data,_ := base64.StdEncoding.DecodeString(userName)
+	
+	beego.Info(userName)
+	
+	if userName == ""{
+		
+		this.Data["userName"] = ""
+		
+		this.Data["checked"] = ""
+	
+	}else{
+		
+		this.Data["userName"] = string(data)
+		
+		this.Data["checked"] = "checked"
+	
+	}
+	
+	this.TplName = "login.html"
+
+}
+
+
+
+func(this*UserController)HandleLogin(){
+	
+	//1.获取数据
+	
+	userName := this.GetString("userName")
+	
+	pwd := this.GetString("password")
+	
+	//2.校验数据
+	
+	if userName == "" || pwd == ""{
+		
+		this.Data["errmsg"] = "登录数据不完整"
+		
+		this.TplName = "login.html"
+		
+		return
+	
+	}
+
+	
+
+	//3.操作数据
+		
+	//1。获取ORM对象
+		
+	o := orm.NewOrm()
+		
+	var user models.User
+		
+	user.Name = userName
+		
+	err := o.Read(&user,"Name")
+		
+	if err != nil{
+			
+		this.Data["errmsg"] = "用户不存在"
+			
+		this.TplName = "login.html"
+			
+		return
+		
+	}
+		
+
+	if user.PassWord != pwd{
+			
+		this.Data["errmsg"] = "密码错误"
+			
+		this.TplName = "login.html"
+			
+		return
+		
+	}
+
+
+	
+
+	//4.返回页面
+	
+	//this.Ctx.WriteString("登录成功")
+	
+	data := this.GetString("remember")
+	
+	beego.Info(data)
+	
+	if data == "on"{
+		
+		temp := base64.StdEncoding.EncodeToString([]byte(userName))
+		
+		this.Ctx.SetCookie("userName",temp,100)
+	
+	}else {
+		
+		this.Ctx.SetCookie("userName",userName,-1)
+	
+	}
+
+
+	
+	this.SetSession("userName",userName)
+	
+	this.Redirect("/article/showArticleList",302)
+
+}
+
+
+
+//退出登录
+
+func(this*UserController)Logout(){
+	
+	//删除session
+	
+	this.DelSession("userName")
+	
+	//跳转登录页面
+	
+	this.Redirect("/login",302)
+
+}
+
+
+
+
+
+
+
+
+
+1、
+完善注册功能
+修改用户名注册为邮箱注册
+
+用户使用邮箱注册时候，需要发送激活邮件给用户
+
+用户点击激活链接后完成激活
+
+请画出完整的注册流程图
+                     
+                                            是
+注册页面  ------>  验证用户名称是否为邮箱  ------>  
+                                |
+    |                           |
+    |                           |
+    |                           |否
+    |                           |
+    ----------------------------|
+
+
+
+
+注意：邮件是有时效的，过期失效，密码需要加密处理后存入数据库
+
+提示：
+
+前后端都需要，邮箱校验
+
+注册时候，设置成未激活状态，激活后设置成激活状态，未激活的账户不能登录
+
+发送邮件服务可以自己百度也可以参考https://blog.csdn.net/fwhezfwhez/article/details/80833084
+
+激活需要哪些信息，那么激活链接需要有哪些信息
+
+激活业务需要校验激活链接是否失效，校验用户信息等
+
+高能版本（选做），web扩展（激活使用jwt）参考链接https://blog.csdn.net/weixin_40592935/article/details/80846712
+
+
+
+
+
+
+2、
+实现账号与手机绑定
+提供账号绑定手机，绑定的时候需要手机验证！
+
+提供账号解绑手机，解绑也需要手机验证
+
+账号绑定手机后，登录同样也可以支持手机登录（手机号+密码一样可以登录）
+
+使用容联云短信平台（第一次注册默认送8元，足够测试使用），请参考2018-12-28 的直播，go短信消息SDK编写
+
+前端页面有基本功能即可不需要很好，重点是后端逻辑
+
+提示：
+
+短信验证，注意需要有过期，同激活链接类似
+
+前端支持短信重发操作，因为有时候短信验证码可能没有收到
+
+善用Redis 过期操作，支持有过期的信息。
+
+
+
+
+3、
+模式实现扫码登录(难度较大 选做，至少建议看下登录流程)
+扫描登录流程参考 python版本微博登录分析（也可以自己尝试分析），地址链接：https://pan.baidu.com/s/1vxRrVRZppzyp6iiOtnXlLw 提取码：oex0
+
+使用golang模拟实现扫码登录的app，只需要有登录、扫码、执行扫码功能即可
+
+web后的支持扫码登录完整流程
+
+提示：
+
+模拟app的实现，请使用http包，请参考2018-12-28 的直播，go短信消息SDK，发送post请求 （如何携带请求头等信息的）
+
+golang 二维码相关 参考https://blog.csdn.net/wangshubo1989/article/details/77897363
+
+
+
+==========================================
+
+
+
+
+
+package main
+
+
+import (
+	"github.com/astaxie/beego"
+	"******/routers"
+)
+
+
+func main() {
+	beego.Run()
+}
+
+
+
+
+
+
+
+
+
+
+
+package routers
+
+import (
+	"github.com/astaixe/beego"
+	"github.com/astaxie/beego/context"
+)
+
+
+func init() {
+	//beego.Router("/", &controllers.MainController{})
+	//用户注册
+	beego.Router("/register",&controllers.UserController{},"get:ShowReg;post:HandleReg")
+	//激活用户
+	beego.Router("/active",&controllers.UserController{},"get:ActiveUser")
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+package controllers
+
+import (
+	"github.com/astaxie/beego"
+	"regexp"
+	"github.com/astaxie/beego/orm"
+	"shFresh/models"
+	"github.com/astaxie/beego/utils"
+	"strconv"
+	"encoding/base64"
+	"github.com/gomodule/redigo/redis"
+)
+
+
+type UserController struct {
+	beego.Controller
+}
+
+//显示注册页面
+func(this *UserController)ShowReg() {
+	this.TplName = "register.html"
+}
+
+//处理注册数据
+func(this *UserController)HandleReg() {
+	//获取数据
+	userName := this.GetString("user_name")
+	pwd:=this.GetString("pwd")
+	cpwd :=this.GetString("cpwd")
+	email := this.GetString("email")
+	//2.校验数据
+	if userName == "" || pwd == "" || cpwd == "" || email == ""{
+		this.Data["errmsg"] = "数据不完整，请重新注册～"
+		this.TplName = "register.html"
+		return
+	}
+	if pwd != cpwd{
+		this.Data["errmsg"] = "两次输入密码不一致，请重新注册！"
+		this.TplName = "register.html"
+		return
+	}
+	reg,_ :=regexp.Compile("^[A-Za-z0-9\u4e00-\u9fa5]+@[a-zA-Z0-9_-]+(\\.[a-zA-Z0-9_-]+)+$")
+	res := reg.FindString(email)
+	if res == "" {
+		this.Data["errmsg"] = "邮箱格式不正确"
+		this.TplName = "register.html"
+		return
+	}
+
+
+}
+
+
+
+
+
+//激活处理
+func(this*UserController)ActiveUser(){
+	//获取数据
+	id,err := this.GetInt("id")
+	//校验数据
+	if err != nil{
+		this.Data["errmsg"]= "要激活的用户不存在"
+		this.TplName = "register.html"
+		return
+	}
+	//处理数据
+	//更新操作
+	o := orm.NewOrm()
+	var user models.User
+	user.Id = id
+	err = o.Read(&user)
+	if err != nil{
+		this.Data["errmsg"]= "要激活的用户不存在"
+		this.TplName = "register.html"
+		return
+	}
+	user.Active = true
+	o.Update(&user)
+
+	//返回视图
+	this.Redirect("/login",302)
+}
+
+
+
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/codegangsta/negroni"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/request"
+	"github.com/astaxie/beego"
+	"golang.org/x/oauth2/jwt"
+)
+
+const(
+	SecretKey = "welcome to my world"
+)
+
+
+func fatal(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+type UserCredentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type User struct {
+	ID       int    `json:'id'`
+	Name     string `json:'name'`
+	Username string `json:'username'`
+	Password string `json:'pasword'`
+}
+
+type Response struct {
+	Data string `json:'data'`
+}
+
+type Token struct {
+	Token string `json:'token'`
+}
+
+
+
+
+func StartServer() {
+	http.HandleFunc("/login",LoginHandler)
+
+	http.Handle("/resource",negroni.New(
+		negroni.HandlerFunc(ValidateTokenMiddleware),
+		negroni.Wrap(http.HandleFunc(ProtectHandler)),
+	))
+
+	log.Println("Now listening...")
+	http.ListenAndServe(":8080",nil)
+}
+
+func main() {
+	StartServer()
+}
+
+func ProtectedHandler(w http.ResponseWriter, r *http.Request) {
+
+	response := Response{"Gained access to protected resource"}
+	JsonResponse(response, w)
+
+}
+
+func LoginHandler(w http.ResponseWriter, r *http.Request) {
+
+	var user UserCredentials
+
+	err := json.NewDecoder(r.Body).Decode(&user)
+
+	if err != nil {
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprint(w, "Error in request")
+		return
+	}
+
+	if strings.ToLower(user.Username) != "someone" {
+		if user.Password != "p@password" {
+			w.WriteHeader(http.StatusForbidden)
+			fmt.Println("Error logging in")
+			fmt.Println(w, "Invalid credentials")
+			return
+		}
+	}
+
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := make(jwt.MapClaims)
+	claims["exp"] = time.Now().Add(time.Hour * time.Duration(1)).Unix()
+	claims["iat"] = time.Now().Unix()
+	token.Claims = claims
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println(w, "Error extracting the key")
+		fatal(err)
+	}
+
+	tokenString, err := token.SignedString([]byte(Secretkey))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println(w, "Error while signing the token")
+		fatal(err)
+	}
+
+	response := Token{tokenString}
+	JsonResponse(response, w)
+
+}
+
+
+func ValidateTokenMiddleware(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+
+	token, err := request.ParseFromRequest(r request.AuthorizationHeaderExtractor,
+		func(token *jwt.Token) (interface{}, error){
+			return []byte(SecretKey), nil
+		})
+
+	if err == nil {
+		if token.Valid {
+			next(w, r)
+		} else {
+			w.WriteHeader(http.StatusUnauthorized)
+			fmt.Fprint(w, "Token is not valid")
+		}
+	} else {
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprint(w, "Unauthorized access to this resource")
+	}
+
+}
+
+
+func JsonResponse(response interface{}, w http.ResponseWriter) {
+
+	json, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(json)
+}
+
+=================================================
+
+
+短信sdk主要发送请求给短信平台，要求发送短信。
+
+一般有对应语言的SDK，如果有阅读SDK使用文档进行使用，如果没有（例如GO）查看接口文档，然后根据已有SDK代码编写对应语言的代码
+
+发送短信的接口文件：访问服务器资源的时候根据URL定位
+
+
+package main
+
+//base url
+const BaseUrl = "https://app.cloopen.com:8883"  // 模板短信API引用的地址有Base URL,""里面是生产环境的Base URL
+						// 注意：为了确保数据隐私，云通讯平台的REST API是通过HTTPS方式请求。
+
+
+/* 统一请求包头
+URL格式：/2013-12-26/Accounts/{accountSid}/SMS/TemplateSMS?sig={SigParameter}
+
+在URL格式中 {}内的内容表示为参数，非{}的内容固定不变。
+
+accountSid String类型：开发者主账户ACCOUNT SID（登陆官网在管理控制台-->控制台首页-->开发者主账号获取）
+SigParameter String类型：
+
+REST API 验证参数，生成规则如下
+
+1.使用MD5加密（账户Id + 账户授权令牌 + 时间戳）。其中账户Id和账户授权令牌根据url的验证级别对应主账户。
+
+时间戳是当前系统时间，格式"yyyyMMddHHmmss"。时间戳有效时间为24小时，如：20140416142030
+
+2.SigParameter参数需要大写，如不能写成sig=abcdefg而应该写成sig=ABCDEFG
+
+*/
+
+
+//参数1：accountSid = "8aaf07086ade4b2d016b171f3e432942"
+//参数2：SigParameter = （账户Id + 账户授权令牌 + 时间戳）
+
+
+/*HTTP标准请求包 头格式要求(类型都为String)：
+Accept:application/json;                      //客户端响应接收数据格式：application/xml、application/json
+
+Content-Type:application/json;charset=utf-8;  //类型：application/xml;charset=utf-8、application/json;charset=utf-8
+
+Content-Length:256;                           //长度需要自己计算
+
+Authorization:				      //生成规则详见下方说明
+
+					     1.使用Base64编码（账户Id + 冒号 + 时间戳）其中账户Id根据url的验证级别对应主账户
+
+					     2.冒号为英文冒号
+
+					     3.时间戳是当前系统时间，格式"yyyyMMddHHmmss"，需与SigParameter中时间戳相同。
+*/
+
+
+/*请求包体
+
+to		String	短信接收端手机号码集合，用英文逗号分开，每批发送的手机号数量不得超过200个
+appId   	String	用Id
+templateId	String	模板Id
+datas		String	内容数据外层节点，模板如果没有变量，此参数可不传
+data    	String  内容数据，用于替换模板中{序号}
+
+{"to":"13911281234,15010151234,13811431234","appId":
+ "ff8080813fc70a7b013fc72312324213","templateId":"1","datas":["替换内容","替换内容"]}
+*/
+
+
+//把发送消息封装成一个对象
+
+type RLYMSG struct {
+     // 属性, 全部属性需要自己确定，分析
+     accountSid string
+     authToken  string
+     appId string
+     templateId string
+     flag bool  //该标志用于只有通过NewMSG方法产生的对象才可调用发送消息的方法,
+		//不是这种方法产生的对象不可以调用发送消息的方法
+}
+
+
+func NewMSG(accountSid string, authToken string, appId string, templateId string) *RLYMSG{
+     //创建对象
+     msgInstance := new(RLYMSG)
+     //对属性进行赋值初始化
+     msgInstance.accountSid = accountSid
+     msgInstance.authToken = authToken
+     msgInstance.appId = appId
+     msgInstance.templateId = templateId
+     msgInstance.flag = true
+     //返回创建好的对象
+     return msgInstance
+}
+
+//获取签名信息以及验证信息
+func (this *RLYMSG)genSigAndAuth() (sig string, auth string){
+	//计算时间戳   格式："yyyyMMddHHmmss"
+	curtime := time.Now().Format("20060102150405")
+	fmt.Println(curtime)
+	//产生签名信息
+	sigstr := this.accountSid + this.authToken + curtime
+	//md5加密sigstr
+	sigB := md5.Sum([]byte(sigstr))  //返回一个字节数组
+	//把字节数组转成字符并且字符串转大写,最终产生签名
+	sig = strings.ToUpper(fmt.Sprint("&x",sigB))
+
+	//产生验证信息, base64编码生成验证信息
+	enc := base64.StdEncoding
+
+	//要编码的字符串
+	encstr := this.accountSid + ":" + curtime
+
+	//编码数据
+	auth := enc.EncodeToString([]byte(encstr))
+
+	return
+}
+
+
+//创建请求包体
+func (this *RLYMSG)genBodyContent(data []string, mobile ...string)（string, error）{
+	//格式化要发送的内容
+	if len(data) == 0 {
+	   return "", fmt.Errorf("发送的内容为空")
+	}
+
+	//校验手机号码，使用正则表达式校验
+	if len(mobile) == 0 {
+	   return "", fmt.Errorf("没有手机号")
+	}
+
+
+	//返回的内容map
+	content := map[string]interface{}{
+		"to" : strings.Join(mobile, ","),
+		"appId" : this.appId,
+		"templateId" : this.templateId,
+		"datas" : data
+	}
+
+	//吧content转成json格式
+	rsp, err := json.Marshal(content)
+	if err != nil {
+	   return "", err
+	}
+
+	return string(rsp), nil
+
+}
+/*
+响应包
+此步响应只表明客户的短信请求发送成功，不表明短信通道已经发送短信成功。
+
+statusCode String 	请求状态码，取值000000（成功）
+
+smsMessageSid String	短信唯一标识符
+
+dateCreated String	短信的创建时间
+*/
+
+//实现发送消息的方法
+func (this *RLYMSG)SendMSG(data []string, mobile ...string)(rspcode string, err error) {
+	//创建http的一个客户端
+	client := http.Client{}  //创建完成一个HTTP客户端
+
+	
+	//构造HTTP请求:上面BaseURL，请求包的头， 请求包体
+	//构造URL
+	sig, auth := this.genSigAndAuth()
+	reqUrl := BaseUrl + "/2013-12-26/Accounts/" + "this.accountSid" + "/SMS/TemplateSMS?sig=" + sig
+
+
+	//创建一个请求包对象
+	//获取body内容
+	content ,err := this.genBodyContent(data, mobile...)
+	if err !=nil {
+	   return "11111", err
+	}
+
+
+	//创建body
+	var body bytes.Buffer
+	body.Write([]byte(content)) //正常情况要做判断
+
+	req, err := http.NewRequest("POST",requUrl,&body)
+	if err !=nil {
+	   return "11111", err
+	}
+
+
+	//添加请求头
+	req.Header.Add("Accept","application/json")
+	req.Header.Add("Content-Type","application/json;charset=utf-8")
+	contentLg := len(content)
+	req.Header.Add("Content-Length",strconv.Itoa(contentLg))
+	req.Header.Add("Authorization",auth)
+
+
+	//请求包的格式完成，发送HTTP请求
+	rsponse, err := client.Do(req)  //Do 发送请求包
+	if err !=nil {
+	   return "11111", err
+	}
+
+
+	//接收应答
+	buf := make([]byte,response.ContentLength)
+	response.Body.Read(buf)
+
+	var rspContent map[string]interface{}  //用于反序列化得到应答内容
+	json.Unmarshal(buf, &rspContent)
+	fmt.println(rspContent)
+
+	//获取statusCode
+	rspCode = rspContent["statusCode"].(string)
+
+
+	return
+}
+
+
+func main() {
+
+     accountSid := "8aaf07086ade4b2d016b171f3e432942"
+     authToken  := "0c3*******e5c2"
+     appId := "8aaf07086ade4b2d016b171f3e902948"
+     templateId := "1"
+     msg := NewMSG(accountSid, authToken,appId, templateId)
+     data := []string{"666666","5"} // = 验证码为666666，请于5分钟内输入，如非本人操作请忽略该条短信
+     code, err := msg.SendMsg(data, "19926431861")
+     fmt.Println(code, err)
+
+}
+
+
+
+
+1、
+请描述https双向认证过程中，对称加密和非对称加密如何结合使用，请画图描述？
+
+双向验证中，如果你是客户端，你要生成客户端的私钥和证书，将它们放到密钥库中，并将证书发给服务端，同时，在信任库中导入服务端的证书。如果你是服务端，除了在密钥库中保存服务器的私钥和证书，还要在信任库中导入客户端的证书。双方应该进行公钥的互换，然后进行通信。
+
+
+1. 服务器要准备的
+	生成密钥对(非对称加密)
+	将公钥发送给ca, 由ca自己的私钥(非对称加密)对服务端的公钥添加数字签名并且签发证书
+	将ca签发的证书和自己的 非对称加密的私钥部署到当前的web服务器
+   客户端要准备的
+	生成密钥对(非对称加密)
+	将公钥发送给ca, 由ca自己的另外一个私钥(非对称加密)对客户端的公钥添加数字签名并且签发证书
+	将ca签发的证书和自己的 非对称加密的私钥部署
+2. 通信流程
+	1. 客户端连接服务器, 通过一个域名
+		域名和IP地址的关系
+		域名要绑定IP地址
+		一个域名只能绑定一个IP地址
+		IP地址需要被域名绑定
+		一个IP地址可以被多个域名绑定
+		客户端访问的域名会别解析成IP地址, 通过IP地址访问web服务器
+	2. 服务器收到了客户端的请求
+		服务器将CA签发的证书发送给客户端
+	3. 客户端拿到了服务器的公钥证书，并且有提前安装CA的公钥，用该公钥解除证书中的签名
+		读这个证书（证书里面有服务器的公钥）
+		验证域名
+		有效期
+		ca签发机构
+		获取服务器的公钥
+	4. 客户端会CA签发的证书发送给服务器
+
+	5. 服务器拿到了客户端的公钥证书，并且有提前安装对应的CA的公钥，用该公钥解除证书中的签名
+		读这个证书（证书里面有客户端的公钥）
+		验证域名
+		有效期
+		ca签发机构
+		获取客户端的公钥
+		
+	6. 数据的传输
+		服务器用客户端的公钥加密数据传送，客户端收到用自己的私钥解密，客户端用服务器的公钥加密数据传送，服务器收到用自己的私钥解密，。
+
+
+
+
+2、
+请描述数字签名的作用，并画图描述签名和验签的过程？
+
+ ANSWER：数字签名是一种将相当于现实世界中的盖章、签字的功能在计算机世界中进行实现的技术。使用数字签名可以识别篡改和伪装，还可以防止否认。
+
+（1）Alice用单向散列函数计算消息的散列值。
+（2）Alice用自己的私钥对散列值进行加密。（用私钥加密散列值所得到的密文就是Alice对这条散列值的签名，由于只有Alice才持有自己的私钥因此,
+					  除了Alice以外，其他人是无法生成相同的签名（密文）的。）
+（3）Alice将消息和签名发送给Bob。
+（4）Bob用Alice的公钥对收到的签名进行解密。（如果收到的签名确实是用Alice的私钥进行加密而得到的密文（签名），那么用Alice的公钥应该能够正确
+						解密，解密的结果应该等于消息的散列值。如果收到的签名不是用Alice的私钥进行加密而得到的密文，
+						那么就无法用Alice的公钥正确解密（解密后得到的数据看起来是随机的）。）
+（5）Bob将签名解密后得到的散列值与Alice直接发送的消息的散列值进行对比。（如果两者一致，则签名验证成功；如果两者不一致，则签名验证失败。）
+
+
+
+
+
+
+3、
+请描述https单项认证过程中，对称加密和非对称加密如何结合使用，请画图描述？
+
+单向验证中，如果是你客户端，你需要拿到服务器的证书，并放到你的信任库中；如果是服务端，你要生成私钥和证书，并将这两个放到你的密钥库中，并且将证书发给所有客户端。
+
+1. 服务器要准备的
+	生成密钥对(非对称加密)
+	将公钥发送给ca, 由ca自己的私钥(非对称加密)对服务端的公钥添加数字签名并且签发证书
+	将ca签发的证书和自己的 非对称加密的私钥部署到当前的web服务器
+2. 通信流程
+	1. 客户端连接服务器, 通过一个域名
+		域名和IP地址的关系
+		域名要绑定IP地址
+		一个域名只能绑定一个IP地址
+		IP地址需要被域名绑定
+		一个IP地址可以被多个域名绑定
+		客户端访问的域名会别解析成IP地址, 通过IP地址访问web服务器
+	2. 服务器收到了客户端的请求
+		服务器将CA签发的证书发送给浏览器(客户端)
+	3. 客户端拿到了服务器的公钥证书，并且有提前安装CA的公钥，用该公钥解除证书中的签名
+		读这个证书（证书里面有服务器的公钥）
+		验证域名
+		有效期
+		ca签发机构
+		服务器的公钥
+	4. 客户会生成一个随机数 (作为对称加密的秘钥来使用的)
+		使用服务器的公钥就这个随机数进行加密
+		将这个加密之后 对称秘钥发送给服务器
+	5. 服务器对收到的密文解密
+		使用服务器的是要解密, 得到对称加密的秘钥
+	6. 数据的传输
+		使用对称加密的方式对数据进行加密
+
+最终，服务器用对称秘钥加密数据传给客户端，客户端用对称秘钥解密。然后客户端用服务器的公钥加密数据传给服务器，服务器收到用私钥解密。
+
+
+
+4、
+请描述对称加密和非对称加密的区别？
+
+
+                秘钥                                 效率                    加密安全强度
+对称加密        只有一把秘钥，并且存在秘钥分发问题   高，适合大量数据加密    低
+                通信用这一把秘钥进行加密解密
+
+非对称加密      公钥私钥两把，不存在秘钥分发问题     低，适合少量数据加密    高
+		公钥加密，私钥解密或者私钥加密，
+		公钥解密
+
+
+
+
+
+
+
+
+
+
+
+
+下面我们来看一看使用公钥密码的通信流程。和以前一样、我们还是假设Alice要给Bob发送一条消息，Alice是发
+送者，Bob是接收者，而这一次窃听者Eve依然能够窃所到他们之间的通信内容。
+在公非对称加密通信中，通信过程是由接收者Bob来启动的。
+
+
+1. Bob生成一个包含公钥和私钥的密钥对。
+私钥由Bob自行妥善保管。
+2. Bob将自己的公钥发送给Alicea
+Bob的公钥被窃听者Eve截获也没关系。
+将公钥发送给Alice，表示Bob请Alice用这个公钥对消息进行加密并发送给他。
+3. Alice用Bob的公钥对消息进行加密。
+加密后的消息只有用Bob的私钥才能够解密。
+虽然Alice拥有Bob的公钥，但用Bob的公钥是无法对密文进行解密的。
+4. Alice将密文发送给Bobo
+密文被窃听者Eve截获也没关系。Eve可能拥有Bob的公钥，但是用Bob的公钥是无法进行解密的。
+5. Bob用自己的私钥对密文进行解密。
+请参考下图, 看一看在Alice和Bob之间到底传输了哪些信息。其实它们之间所传输的信息只有两个：
+Bob的公钥以及用Bob的公钥加密的密文。由于Bob的私钥没有出现在通信内容中，因此窃听者Eve无法
+对密文进行解密。
+
+
+1、单向验证中，如果是你客户端，你需要拿到服务器的证书，并放到你的信任库中；如果是服务端，你要生成私钥和证书，并将这两个放到你的密钥库中，并且将证书发给所有客户端。
+2、双向验证中，如果你是客户端，你要生成客户端的私钥和证书，将它们放到密钥库中，并将证书发给服务端，同时，在信任库中导入服务端的证书。如果你是服务端，除了在密钥库中保存服务器的私钥和证书，还要在信任库中导入客户端的证书。
+3、再次强调，使用单向验证还是双向验证，是服务器决定的。
+4、https的验证过程，不管是单向还是双向，只有四步，网上很多关于https验证过程的文章中，写了来来回回七八上十步。要真是这样，访问一个https地址，时间全花在了交互上了。
+
+消息验证码的使用过程：
+1. 发送者Alice与接收者Bob事先共享密钥。
+2. 发送者Alice根据汇款请求消息计算MAC值（使用共享密钥）。
+3. 发送者Alice将汇款请求消息和MAC值两者发送给接收者Bob。
+4. 接收者Bob根据接收到的汇款请求消息计算MAC值（使用共享密钥）。
+5. 接收者Bob将自己计算的MAC值与从Alice处收到的MAC值进行对比。
+6. 如果两个MAC值一致，则接收者Bob就可以断定汇款请求的确来自Alice（认证成功）；如果不一致，则可以断定消息不是来自Alice（认证失败）。
+
+
+
+
+
+Alice 和 Bob通信, Alice给bob发送数据, 使用对称加密的方式
+
+1. bob生成一个非对称的秘钥对
+2. bob将公钥发送给alice
+3. alice生成一个用于对称加密的秘钥
+4. alice使用bob的公钥就对称加密的秘钥进行加密, 并且发送给bob
+5. bob使用私钥就数据解密, 得到对称加密的秘钥
+6. 通信的双方使用写好的秘钥进行对称加密数据加密
+
+在对称密码中，由于加密和解密的密钥是相同的，因此必须向接收者配送密钥。用于解密的密钥必须被配送给
+接收者，这一问题称为密钥配送问题。如果使用非对称加密也可以称为公钥密码，则无需向接收者配送用于解
+密的密钥，这样就解决了密钥配送问题。可以说非对称加密是密码学历史上最伟大的发明。
+
+非对称加密中，密钥分为加密密钥和解密密钥两种。发送者用加密密钥对消息进行加密，接收者用解密密钥对
+密文进行解密。要理解公钥密码，清楚地区分加密密钥和解密密钥是非常重要的。加密密钥是发送者加密时使
+用的，而解密密钥则是接收者解密时使用的。
+仔细思考一下加密密钥和解密密钥的区别，我们可以发现：
+发送者只需要加密密钥
+接收者只需要解密密钥
+解密密钥不可以被窃听者获取
+加密密钥被窃听者获取也没问题
+也就是说，解密密钥从一开始就是由接收者自己保管的，因此只要将加密密钥发给发送者就可以解决密钥配送
+问题了，而根本不需要配送解密密钥。
+非对称加密中，加密密钥一般是公开的。正是由于加密密钥可以任意公开，因此该密钥被称为公钥
+（publickey）。公钥可以通过邮件直接发送给接收者，也可以刊登在报纸的广告栏上，做成看板放在街上，或
+者做成网页公开给世界上任何人，而完全不必担心被窃听者窃取。
+当然，我们也没有必要非要将公钥公开给全世界所有的人，但至少我们需要将公钥发送给需要使用公钥进行加
+密的通信对象（也就是给自己发送密文的发送者）。
+相对地，解密密钥是绝对不能公开的，这个密钥只能由你自己来使用，因此称为私钥（privatekey）。私钥不可
+以被别人知道，也不可以将它发送给别人，甚至也不能发送给自己的通信对象。
+公钥和私钥是一一对应的，一对公钥和私钥统称为密钥对（keypair）。由公钥进行加密的密文，必须使用与该
+公钥配对的私钥才能够解密。密钥对中的两个密钥之间具有非常密切的关系(数学上的关系)一一因此公钥和私钥
+是不能分别单独生成的。
+公钥密码的使用者需要生成一个包括公钥和私钥的密钥对，其中公钥会被发送给别人，而私钥则仅供自己使
+用。稍后我们将具体尝试生成一个密钥对。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

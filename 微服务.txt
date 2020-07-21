@@ -1,0 +1,909 @@
+1、
+请描述微微服务优缺点?为什么采用微服务？
+
+
+
+
+
+2、
+请描述微服务的拆分原则一般都有哪些？
+
+
+
+
+
+3、
+微服务同一个服务是否可以启动多个实例？有什么好处
+
+
+
+
+
+
+
+4、
+GRPC和RPC的区别，以及GRPC工作流程
+
+
+
+
+
+
+5、
+请描述probuf的优缺点，为什么选择probuf？
+
+
+
+
+
+6、
+请问 Rest 与Restful是什么？
+
+
+
+
+
+7、
+consul在微服务中的作用是什么？
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+pragma solidity ^0.4.24;
+
+
+contract Test {
+
+	//状态变量
+	//类型不匹配时需要显示转换类型
+	//返回值需要使用returns描述
+
+	uint256 ui256 = 100;
+				//  上链的部分：合约里面，在函数之外的部分才上链
+	int8 i10 = -10
+
+	function add() returns(uint256) {
+		return ui256 + uint256(i10)		
+	}
+
+	function isEqual() returns(bool) {
+		return ui256 == uint256(i10)
+	}
+
+
+
+	//public/private可以修饰状态变量，状态变量默认是私有的
+	uint256 public ui256 = 100;
+	
+	int8 private i10 = 10;
+
+	//private修饰的函数为私有，只有合约内部可以调用
+	function add() private view returns(uint256) {
+		return ui256 + uint256(i10);
+	}
+
+	
+	function isEqual() public view returns(bool) {
+		return ui256 == uint256(i10);
+	}
+
+
+	//Public修饰的函数为共有的，合约内外都可以调用
+	function Add() public view returns(uint256) {
+		return add()
+	}
+
+
+	uint256 public ui = 100;
+	int8 private i10 = 10;
+ 
+	//如果函数中没有用到状态变量：既没有读也没有写，就修饰为pure
+	function add() public pure returns(string){
+		return "hello"  //上面两个状态变量都没有读也没有写
+	}
+
+	//如果读了，但是没有写，修饰为view, constant，在view, constant修饰函数的函数中，如果取修改了状态变量，编译不会报错，但赋值不会成功(坑！！)
+	
+	function add() public constant returns(uint256) {
+		return ui + uint256(i10)  //这里只读了两个状态变量(=等于没有改变这个状态变量的值)
+	}
+
+	//如果写了，那么不修饰即可
+	function setValue(uint256 num) public {  //这里传参的格式
+		ui = num;
+	}
+
+
+	string public str;
+
+	//修饰为payable的函数才可以接收转账，不指定payable无法接收
+	function test(string src)public payable {
+		str = src;
+	}
+
+	function getBalance() public view returns(uint256) {
+		//this代表当前合约本身，理解为结构体接收器。this本身类型是个地址类型这个有待考究？？
+		//balance与其他例如transfer方法不同，它为属性值，用来获取当前合约的余额。好像这些属性，方法的调用对象都为地址？？
+		return this.balance
+	}
+
+
+	
+	address public addr0 = 0x00ca35b7d915458ef540ade6068dfe2f44e8fa733c;
+    	address public addr1 = 0x0014723a09acff6d2a60dcdf7aa4aff308fddc160c;
+	//address，地址类型本质上是一个160位的数字，可以进行加减，需要强制转换
+	function add() public view returns(uint160) {
+		return uint160(addr1) + 10;
+	}
+
+
+	//匿名函数：没有函数名，没有参数，没有返回值的函数。
+	//调用一个不存在的方法时，合约默认的取调用匿名函数，
+	//匿名函数一般用来给合约转账，因为费用低，非常高效
+	function () public payable {
+	}
+
+
+	function getBalance() public view returns(uint256) {
+		return addr1.balance;       
+		return address(this).balance; //this代表当前合约本身。用balance属性必须强制转换成address，参考上面的说法
+	}
+
+	
+	//由合约向addr1转账10以太币
+	function transfer() public {
+		//转账的单位是wei， 1 ether = 10^18(10的18次方)，花费的是合约的钱，如果金额不够，transfer函数抛出异常
+		addr1.transfer(10 * 10^18); //向谁转账，谁就用transfer函数，花费的是合约的钱，因为函数在合约里面
+	}
+
+	//send转账与transfer使用方式一样，如果金额不够，函数不会抛出异常，只会返回false，不过不建议使用，因为不太安全
+	function sendTest() public {
+		addr1.send(10 * 10^18);
+	}
+	
+
+	//固定长度字节数组，范围：bytes1 -- bytes32
+	bytes1 b1 = "h";
+	bytes20 b10 = "helloworld"l   //byte数字代表字节长度？？
+
+	function getLen() public view returns(uint256) {
+		return b10.length;
+	}
+
+
+	function setValue() public view returns(byte) {
+		 //固定长度数组可以通过下标访问，下标从0开始,不过只能读取，不能写
+                 //b10[0] = v; 这个是错误的
+		 return b10[i]; //存储的时候是ascii值存储，所以范围类型是byte
+	}
+
+
+
+	枚举类型：
+   
+    	enum WeekDays {
+        	Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday
+    	}  //顶一个枚举类型WeekDays
+    
+    	WeekDays currentDay; //定义currentDay为枚举类型WeekDays
+    	WeekDays defaultday = WeekDays.Sunday;  //定义defaultday值为Sunday
+    
+    	function setDay(WeekDays _day) public {
+    	    currentDay = _day; //赋值currentDay为 _day
+    	}
+    
+    	function getDay() public view returns(WeekDays) {
+    	    //return uint256(currentDay);
+      	    return currentDay;
+    	}
+    
+    	function getDefaultDay() public view returns(uint256) {
+       	    return uint256(defaultday);   
+    	}
+
+
+	//Bytes 类型
+
+	bytes public tri;
+
+	func getLen() public view returns(uint256) {
+		return tri.length;  //获取长度的函数
+	}
+
+	//1. 可以不分空间，直接进行字符串赋值，会自动分配空间
+    	function setValue(bytes input) public {
+        	tri = input;
+    	}
+    
+    	//2. 如果未分配过空间，使用下标访问会访问越界报错
+    	function getByIndex(uint256 i) public view returns(byte) {
+        	return tri[i];
+    	}
+    
+    	//3. 可以设置长度，自动分配对应空间，并且初始化为0
+    	function setLen(uint256 len) public {
+        	tri.length = len;
+    	}
+    
+    
+    	//4.可以通过下标进行数据修改
+    	function setValue2(uint256 i) public {
+        	tri[i] = "h";
+    	} 
+    
+    	//5. 支持push操作，在bytes最后面追加元素
+    	function pushData() public {
+        	tri.push('h');
+    	}
+
+	
+	//字符串类型，字符串修改，遍历，获取到长度，参照上面字节类型的用法
+	string public str = "lily";
+
+	 bytes(str) 将字符串类型转换成字节类型，然后：
+	 bytes(str)[i] = value  //通过下标改变值
+	 bytes(str).length	//获取字符串长度
+
+
+	//传参分为值传递(memory类型)，引用传递(stroage类型)
+	//对于引用类型数据，作为函数参数时，默认是memory类型（值传递）
+	function setValue(string input) private {
+	= function setValue(string memory input) private {
+	}
+	//如果想引用传递，那么需要明确指定为stroage类型
+	//如果局部变量是string，数组，结构体类型数据，默认情况下是storage类型
+	function setValue(string storage input) private {
+		string storage tmp = str;
+		//也可以明确设置为memory类型
+		string memory tmp = str;
+	}
+	
+	
+	bytes10 public b10 = 0x68656c6c6f776f726c64; //  =helloworld，因为存储值为ascii值
+    
+    	bytes public bs10 = new bytes(b10.length);
+    
+    	//将固定长度数组的值赋值给不定长度数组
+    	function fixedByteToBytes() public {
+        	//bs10 = b10;
+        	for (uint256 i = 0; i < b10.length; i++) {
+            		bs10[i] = b10[i];
+        	}
+    	}
+     
+    
+    	//将bytes转成string
+    	string public str1;
+    
+    	function bytesToString() public {
+        	fixedByteToBytes();
+        	str1 = string(bs10);
+    	}
+    
+    
+    	//将string转成bytes
+    	bytes public bs20;
+    
+    	function stringToBytes() public {
+        	bytesToString();
+        	bs20 = bytes(str1);
+    	}
+
+
+
+	//定长数组
+    
+    	uint256[10] public numbers = [1,2,3,4,5,6,7,8,9, 10];
+    
+    	uint256 public sum;
+    
+    	// - 类型T，长度K的数组定义为T[K]，例如：uint [5] numbers,  byte [10] names;
+    	// - 内容可变  numbers[i] = value;
+    	// - 长度不可变，不支持push
+    	// - 支持length方法
+
+    	function total() public returns(uint256) {
+        	for (uint256 i = 0; i < numbers.length; i++) {
+            		sum += numbers[i];
+        	}        
+       		return sum; 
+    	}
+    
+    	bytes10 public helloworldFixed = 0x68656c6c6f776f726c64;
+    
+    	byte[10] public helloworldDynamic = [byte(0x68), 0x65, 0x6c, 0x6c, 0x6f, 0x77, 0x6f, 0x72, 0x6c, 0x64];
+    
+    	bytes public b10;
+    
+    	function setToBytes() public  returns (string){
+        	for (uint256 i=0; i< helloworldDynamic.length; i++) {
+            		byte b1 = helloworldDynamic[i];
+            		b10.push(b1);
+        	}
+        
+        	return string(b10);
+    	}
+
+	
+	
+	//不定长数组：第一种创建方式，直接赋值
+    	uint8[] numbers = [1,2,3,4,5,6,7,8,9,10];
+    
+    	function pushData(uint8 num) public {
+        	numbers.push(num);
+    	}
+    
+    	function getNumbers() public view returns(uint8[]) {
+        	return numbers;
+    	}
+    
+    
+    	//使用new关键字进行创建，赋值给storage变量数组
+    	uint8[] numbers2;
+    
+    	function setNumbers2() public {
+        	numbers2 = new uint8[](7);
+        	numbers2.length = 20;
+        	numbers2.push(10);
+    	}
+    
+    	function getNumbers2() public view returns(uint8[]) {
+        	return numbers2;
+    	}
+    
+    	function setNumbers3() public {
+        	//使用new创建的memory类型数组，无法改变长度
+        	//uint8[] memory numbers3 = new uint8[](7);
+        	uint8[] memory numbers3;
+        
+        	//numbers3.push(10);
+        
+    	}
+
+
+	//定义结构之后无分号，与枚举一致
+    	struct Student {
+        	string name;
+        	uint age;
+        	uint score;
+        	string sex;
+    	}
+
+    	Student[] public Students;
+    
+        
+    	//两种赋值方式
+    	Student public stu1 = Student("lily", 18, 90, "girl");
+    	Student public stu2 = Student({name:"Jim", age:20, score:80, sex:"boy"});
+    
+    	function assign() public {
+        	Students.push(stu1);
+        	Students.push(stu2);
+
+        	stu1.name = "Lily";
+    	}
+
+    
+    	//使用圆括号包裹起来的类型叫做元组“tuple”
+    	//特性：1.  不可修改，2.可以容纳不同类型的数据
+    	function returnStudent() public view returns(string, uint, uint, string) {
+        	return (stu1.name, stu1.age, stu1.score, stu1.sex);
+    	}
+
+
+
+	mapping(uint => string) public id_names;
+    
+    	//构造函数：
+    	//1. 对象在创建的时候，自动执行的函数，完成对象的初始化工作
+    	//2. 构造函数仅执行一次
+ 
+    	constructor()  public{
+        	id_names[1] = "lily";
+        	id_names[2] = "Jim";
+        	id_names[3] = "Lily";
+        	id_names[3] = "Tom";
+    	}
+    
+    	function getNameById(uint id)  public returns (string){
+        	//加上storage如何赋值？
+        	string memory name = id_names[id];
+        	return name;
+    	}
+    
+    	function setNameById(uint id)  public returns (string){
+        	// mapping(uint => string) memory id_name = id_names;
+        	// var ids = id_names;
+        	id_names[id] = "Hello";
+    	}
+    
+    
+    	// function getMapLength() public returns (uint){
+    	//     return id_names.length;
+    	// }
+} 
+
+
+
+//代币
+
+
+
+
+
+
+
+
+
+pragma solidity ^0.4.24;
+
+
+contract Lottery {
+    
+    // 1. 管路员：负责开奖和退奖
+    // 2. 彩民池：address[] players
+    // 3. 当前期数：round，每期结束后加一
+
+    //在前端，可以通过访问函数得到manager，round，winner的信息
+    //manager(), round(), winner()
+    
+    address public manager;
+    address[] public players;
+    uint256 public round;
+    address public winner;	
+    
+   
+    constructor() public {
+	//在部署合约的时候，设置一个全局唯一的合约所有者，后面可以使用权限控制
+	//1. msg.sender是一个可以改变的值，并不一定是合约的创造者
+    	//2. 任何人调用了合约的方法，那么这笔交易中的from就是当前msg.sender
+	//function setValue(uint256 input) public{
+	//	a = input;
+	//	caller = msg.sender;  这里caller变成了当前所有者？？
+	//}
+
+	manager = msg.sender;		//设置manager为全局唯一的合约所有者
+    }
+    
+
+    function play() payable public {
+	//每个人可以多投几次，但是每次只能投1 ether
+	reuqire(msg.value == 1 etger);
+	//把参与者加入到彩民池中
+	players.push(msg.sender);
+    }
+    
+    // 开奖函数：
+    // 目标：从彩民池（数组）中找到一个随机彩民（找一个随机数）
+    // 找到一个特别大的数（随机）， 对我们的彩民数组长度求余数。
+    // 用哈数值来实现大的随机数。 v3
+    // 哈希内容的随机：当前时间，区块的挖矿难度，彩民数量，作为输入
+	
+    
+    
+    function kaiJiang() onlyManager public {
+        
+        bytes memory v1 = abi.encodePacked(block.timestamp, block.difficulty, players.length);
+        bytes32 v2 = keccak256(v1);
+		uint256 v3 = uint256(v2);
+		
+		uint256 index = v3 % players.length;
+		
+		winner = players[index];
+		
+		uint256 money = address(this).balance * 90 / 100;
+		uint256 money1 = address(this).balance - money;
+		
+		winner.transfer(money);
+		manager.transfer(money1);
+		
+		round++;
+		delete players;
+		
+    }
+    
+    // 退奖逻辑：
+    // 1. 遍历palyers数组，逐一退款1ether
+    // 2. 期数加一
+    // 3. 彩民池清零
+    
+    // 调用者花费手续费（管理员）
+    
+    function tuiJiang() onlyManager public {
+        for (uint256 i= 0; i < players.length; i++) {
+            players[i].transfer(1 ether);
+        }
+        
+        round++;
+        delete players;
+    }
+    
+    
+    modifier onlyManager {
+        require(msg.sender == manager);
+        _;
+    }
+
+    //获取彩民人数
+    function getPlayersCount() public view returns(uint256) {
+        return players.length;
+    }
+    
+    //获取余额
+    function getBalance() public view returns(uint256){
+        return address(this).balance;
+    }
+    
+    //获取彩民数组
+    function getPlayers() public view returns(address[]) {
+        return players;
+    }
+}
+
+
+
+部署到真实的网络需要的数据：
+
+1，助记词，表明花费谁的钱
+   
+2，制定一个服务商，让它帮助我们链接到真实网络
+   通过INFURA页面进行创建链接：https://**.infura.io/v*/**
+3，需要使用一个npm包，接收两个参数，a. b. 这个包帮助我们链接到对应的网络 
+   install truffle-hdwallet-provider@0.0.3 -save
+
+
+
+
+
+
+将合约部署到真实网络Ropsten
+1，安装truffle-hdwallet-provider@0.3.3版本
+2，导入包
+3，创建一个provider服务商
+   1，new一个服务商对象
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+contract InfoFeed {
+	
+	function info() public payable returns(uint ret) {
+		return 42;
+	}
+
+
+	function getBalance() public view returns (uint256) {
+		return address(this).balance;
+	}
+}
+
+
+
+contract Consumer {
+
+	InfoFeed public feed;
+
+	function setFeed(address addr) public {
+		feed = InfoFeed(addr);
+	}
+
+	function callFeed() public {
+		//合约间转账语法
+		feed.info.value(10).gas(800)();
+	}
+
+	function () payable public {
+
+	}
+
+	fucntion getBlance() public view returns(uint256) {
+		return address(this).balance;
+	}
+}
+
+
+
+
+
+
+
+let {bytecode, interface} = require('./01-compile')
+
+let web3 = require('web3')
+
+let HDwalletProvider = require('truffle-hawallet-provider')  <-- 
+
+let web3 = new web3()
+
+
+设置网络
+
+let terms = 'scout same naive genius cannon maze differ acquire penalty habit surround ice'
+let netIp = 'https://ropsten.infura.io/v3/02cd1e3c295c425597fa105999493baa'
+
+
+let provider = new HAWalletProvider(terms, netIP)
+
+web3.setProvider(provider)
+
+
+
+//获取当前账户
+
+get
+
+
+
+//获取合约实例
+
+let web3 = require("../utils/initWeb3")
+
+
+let abi = 复制ABI到浏览器地址栏，然后在copy到这里
+
+
+let address = 0x地址
+
+
+//此处abi已经json对象，不需要进行parse
+
+let contractInstance = new web3.eth.Contract(abi, address)
+
+
+console.log('address；', contractInstance.options.address)
+
+
+module.exports = contractInstance
+
+
+
+
+
+pragma solidity ^0.4.24;
+
+import './FundingFactory.sol';
+
+
+contract Funding{
+
+
+//管理员
+//项目名称
+//项目目标筹集金额
+//每个人支持多少钱
+//项目支持多少天
+
+
+
+	address public manager;
+	string  public projectname;
+	uint256 public targetmoney;
+	uint256 public supportmoney;
+	uint256 public endtime;
+
+	address[] investors;  // 维护所有参与人的结构
+
+	SupportorFundingContract supportorFundings;
+
+	constructor(string _projectname, uint256 _targetmoney, uint256 _supportmoney, uint256 _duration, address _creator, SupportorFundingContract _supportorFundings) public {
+		manager = _creator;
+		projectname = _projectname;
+		targetmoney = _targetmoney;
+		supportmoney = _supportmoney * 10 ** 18;
+		endtime = block.timestamp + _duration;  //当前时间+持续时间 = 终止时间
+
+		//合约传递给Funding，在构造中接收
+		supportorFundings = _supportorFundings;
+	}
+
+	使用一个mapping来判断一个地址是否是投资人，这样可以快速识别是否有投票资格
+	mapping(address=>bool) isInvestorMap；
+
+
+	fucntion invest() payable public {
+		require(msg,value == supportmoney);
+		
+		investors.push(msg.sender);
+
+		isInvestorMap[msg.sender] = true;
+
+		//将投资人与当前合约的地址传递到FundingFactory中
+		supportFundings.setFunding(msg.sender, this);
+	}
+
+
+	//退款函数，由外面(前段)调用
+	function refund() onlyManager public {
+		for (uint256 i=0; i<investors.length; i++) {
+			investors[i].transfer(supportmoney);
+		}
+
+		delete investors;
+	}
+
+
+	//产品状态的枚举：0-进行中，1-已批准，2-已完成
+	enum RequestStatus {
+		Voting, Approved, Completed
+	}
+
+	
+	//定义花费请求，一个请求由项目方发起，由投资人投票
+	struct Request {
+		string purpose;
+		uint256 cost;
+		address seller;
+
+		//当前这个请求赞成测投票数量
+		uint256 approveCount;
+		RequestStatus status;
+
+		//记录投资人对这个请求的的投票状态，只有未投票的才能投票，每人仅限一票
+		mapping(address=>bool) isVotedMap;
+	}
+
+
+	Request[] public allRequests;  //所有的花费请求的集合
+
+	
+	function createRequest(string _putpose, uint256 _cost, address _seller) onlyManager public {
+		Request memory req = Request({
+			purpose : _purpose,
+			cost: _cost,
+			seller: _seller;
+			approveCount: 0;
+			status: RequestStatus.Voting
+		});
+
+		allRequests.push(req);
+	}
+
+
+	modifier onlyManager {
+		require(msg.sender == manager);
+		_;
+	}
+
+
+}
+
+
+
+
+
+
+
+编写合约
+
+pragma
+
+
+
+
+
+同步调用：
+//node内置的读取文件的模块
+let fs = require("fs");
+
+
+let filename = '1.txt'
+
+
+//测试同步读取文件
+let data = fs.readFileSync(filename, 'utf-8')
+console.log('同步读取文件内容 data：', data)  // 打印
+
+
+
+//异步读取文件
+
+fs.readFile(filename, 'utf-8', /*callback函数*/function(data) {
+	console.log("异步读取文件数据：", data)
+})
+
+
+
+
+
+异步调用：
+
+
+以太坊里面全部的返回都为promise
+
+
+
+
+
+
+
+
+prgama solidity ^0.4.24;
+
+contract SimpleStorage {
+	string str;
+	
+	constructor(string _str) public {
+		str = _str;
+	}
+
+	function setValue(string _str) public {
+		str = _str
+	}
+
+	function getValue() public view returns (string) {
+		return str;
+	} 
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+如何搭载自己的环境：
+
+
+add instance
+
+IP: 192.168.0.28
+
+Memory：1.30%	CPU：0.27%
+
+URL：ip172-18-0-8bmp.play-with-.com
+
+

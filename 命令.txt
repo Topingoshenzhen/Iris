@@ -1,0 +1,114 @@
+inux命令:
+
+ctrl + space  调出输入法
+
+改文件权限：
+r 读权限=read  取值为4。 
+w 写权限=write  取值为2。 
+x 操作权限=execute   取值为1
+权限数字对应权限组说明：
+总共分为4部分
+【文件或文件夹】【owner权限】【group权限】【others权限】
+【文件是-，文件夹是d】【r/w/x相加】【r/w/x相加】【r/w/x相加】
+Linux档案的基本权限就有九个，分别是owner/group/others三种身份各有自己的read/write/execute权限。加入-R 参数，就可以将读写权限传递给子文件夹
+例如chmod -R  777  /home/mypackage
+那么mypackage 文件夹和它下面的所有子文件夹的属性都变成了777，777是读、写、执行权限
+
+
+解压缩zip文件
+
+1.功能作用：解压缩zip文件
+
+2.位置：/usr/bin/unzip
+
+3.格式用法：unzip [-Z] [-opts[modifiers]] file[.zip] [list] [-x xlist] [-d exdir]
+
+4.主要参数
+
+-c 将解压缩的结果显示到屏幕上，并对字符做适当的转换
+-p 与-c参数类似，会将解压缩的结果显示到屏幕上，但不会执行任何的转换。
+-l 显示压缩文件内所包含的文件
+-f 更新现有的文件
+-t 检查压缩文件是否正确，但不解压
+-u 与-f参数类似，但是除了更新现有的文件外，也会将压缩文件中的其他文件解压缩到目录中
+-z 仅显示压缩文件的备注文字
+-v 执行是时显示详细的信息。或查看压缩文件目录，但不解压
+-T 将压缩文件内的所有文件的最新变动时间设为解压缩时候的时间
+-x 指定不要处理.zip压缩文件中的哪些文件
+-d 指定文件解压缩后所要存储的目录
+-n 解压缩时不要覆盖原有的文件
+-q 安静模式，执行时不显示任何信息
+-o 不必先询问用户，unzip执行后覆盖原有文件
+-a 对文本文件进行必要的字符转换
+-j 不处理压缩文件中原有的目录路径
+-aa 把所有的文件目录当作文本处理
+-U use escapes for all non-ASCII Unicode
+-UU 忽略Unicode编码字符
+-C 压缩文件中的文件名称区分大小写
+-L 将压缩文件中的全部文件名改为小写
+-X 解压缩时同时回存文件原来的UID/GID
+-V 保留VMS的文件版本信息
+-K 保留文件的setuid/setgid/tacky属性
+-M 将输出结果送到more程序处理
+-O 指定字符编码为DOS，Windows和OS/2
+-I 指定字符编码为UNIX
+5.应用实例
+1、把文件解压到当前目录下
+
+unzip test.zip
+2、如果要把文件解压到指定的目录下，需要用到-d参数。
+
+unzip -d /temp test.zip
+3、解压的时候，有时候不想覆盖已经存在的文件，那么可以加上-n参数
+
+unzip -n test.zip
+unzip -n -d /temp test.zip
+4、只看一下zip压缩包中包含哪些文件，不进行解压缩
+
+unzip -l test.zip
+5、查看显示的文件列表还包含压缩比率
+
+unzip -v test.zip
+6、检查zip文件是否损坏
+
+unzip -t test.zip
+7、将压缩文件test.zip在指定目录tmp下解压缩，如果已有相同的文件存在，要求unzip命令覆盖原先的文件
+
+unzip -o test.zip -d /tmp/
+
+
+终端命令：
+su - root 登录root用户，密码为 oiu,@r?
+sudo passwrd root 设置root用户登录密码
+
+
+tar.gz（bz或bz2等）
+一、安装
+1、打开一个SHELL，即终端
+2、用cd 命令进入源代码压缩包所在的目录
+3、根据压缩包类型解压缩文件(*代表压缩包名称)
+tar -zxvf ****.tar.gztar -jxvf ****.tar.bz(或bz2)
+4、用CD命令进入解压缩后的目录
+5、输入编译文件命令：./configure（有的压缩包已经编译过，这一步可以省去）
+6、然后是命令：make
+7、再是安装文件命令：make install
+8、安装完毕
+
+
+
+
+首先要知道自己要卸载的软件名，但是很多中文软件名字和英文软件名不对应，比如有道词典对应的是youdao-dict，有时候可能想不起来，于是可以使用下面的命令来查找：
+
+dpkg --list
+1
+该命令可以显示所有已经安装的软件包列表。
+
+找到自己想要卸载的软件对应的软件名，然后卸载：
+
+sudo apt-get --purge remove <软件名>
+1
+如果想要保留该软件的配置文件，则取消–purge 参数即可：
+
+sudo apt-get remove <软件名>
+
+如果安装deb格式软件：sudo dpkg -i ×××.deb  
